@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cheffing/recipe_feed_page.dart';
 import 'package:cheffing/recipe_details_page.dart';
-import 'package:cheffing/registration/registration_page.dart';
+import 'package:cheffing/registration/sign_in_page.dart';
+import 'API_connection.dart';
 
 void main() {
   runApp(const RecipeApp());

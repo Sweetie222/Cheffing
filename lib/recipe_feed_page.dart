@@ -1,5 +1,6 @@
-import 'package:cheffing/recipe_details_page.dart';
 import 'package:flutter/material.dart';
+import 'API_connection.dart'; // Assuming this is where the ApiService is defined
+import 'recipe_details_page.dart'; // Assuming this is your details page
 
 class RecipeFeedPage extends StatefulWidget {
   const RecipeFeedPage({super.key});
@@ -9,17 +10,11 @@ class RecipeFeedPage extends StatefulWidget {
 }
 
 class _RecipeFeedPageState extends State<RecipeFeedPage> {
-  // List of all recipes
-  final List<Map<String, String>> _recipes = [
-    {
-      'title': 'Flavorful Fried Rice Fiesta',
-      'imageUrl': 'assets/grilled_Spaghetti.jpg',
-    }
-    // Add more recipes here...
-  ];
-
-  // List to store filtered recipes
-  late List<Map<String, String>> _filteredRecipes;
+  // Initialize both lists
+  List<Map<String, String>> _recipes = [];
+  List<Map<String, String>> _filteredRecipes = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
 
   // Create a FocusNode for the search bar
   final FocusNode _searchFocusNode = FocusNode();
@@ -27,15 +22,44 @@ class _RecipeFeedPageState extends State<RecipeFeedPage> {
   @override
   void initState() {
     super.initState();
-    _filteredRecipes = _recipes; // Initialize with all recipes
+    _fetchRecipes(); // Call the API when the page loads
+  }
+
+  // Function to fetch recipes from the API and update state
+  Future<void> _fetchRecipes() async {
+    try {
+      List<dynamic> apiRecipes =
+          await ApiService().fetchRecipes(); // Fetch from API
+
+      // Map the fetched recipes to the desired format
+      List<Map<String, String>> recipes = apiRecipes.map((recipe) {
+        return {
+          'title': (recipe['title'] ?? 'No Title').toString(),
+          'imageUrl': (recipe['image'] ?? '').toString(),
+        };
+      }).toList();
+
+      setState(() {
+        _recipes = recipes;
+        _filteredRecipes = recipes; // Initialize filtered recipes
+        _isLoading = false; // Fetching is done
+      });
+    } catch (e) {
+      ('Error fetching recipes: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load recipes';
+      });
+    }
   }
 
   // Function to filter recipes based on search input
   void _filterRecipes(String query) {
     setState(() {
       _filteredRecipes = _recipes
-          .where((recipe) =>
-          (recipe['title'] ?? '').toLowerCase().contains(query.toLowerCase()))
+          .where((recipe) => (recipe['title'] ?? '')
+              .toLowerCase()
+              .contains(query.toLowerCase()))
           .toList();
     });
   }
@@ -52,83 +76,72 @@ class _RecipeFeedPageState extends State<RecipeFeedPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recipe Feed'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60.0),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              focusNode: _searchFocusNode, // Assign the FocusNode to the TextField
-              onTap: () {
-                // Automatically open the keyboard when the search bar is tapped
-                FocusScope.of(context).requestFocus(_searchFocusNode);
-              },
-              onChanged: _filterRecipes,
-              decoration: InputDecoration(
-                hintText: 'Search for a recipe...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30.0),
-                  borderSide: BorderSide.none,
+      ),
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context)
+              .unfocus(); // Dismiss the keyboard on outside taps
+        },
+        child: Column(
+          children: <Widget>[
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                focusNode: _searchFocusNode,
+                onChanged: _filterRecipes,
+                decoration: InputDecoration(
+                  hintText: 'Search for a recipe...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0.0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30.0),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(20),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,  // Two cards per row
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-        ),
-        itemCount: _filteredRecipes.length,  // Use _filteredRecipes instead of _recipes
-        itemBuilder: (context, index) {
-          final recipe = _filteredRecipes[index];  // Use _filteredRecipes here as well
-          return RecipeCard(
-            title: recipe['title']!,
-            imageUrl: recipe['imageUrl']!,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RecipeDetailPage(
-                    title: recipe['title']!,
-                  ),
-                ),
+            Expanded(
+            child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage.isNotEmpty
+              ? Center(child: Text(_errorMessage))
+              : _filteredRecipes.isNotEmpty
+              ? GridView.builder(
+            padding: const EdgeInsets.all(20),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, // Two cards per row
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1, // Adjust as needed
+            ),
+            itemCount: _filteredRecipes.length,
+            itemBuilder: (context, index) {
+              final recipe = _filteredRecipes[index];
+              return RecipeCard(
+                title: recipe['title']!,
+                imageUrl: recipe['imageUrl']!,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecipeDetailPage(
+                        title: recipe['title']!,
+                      ),
+                    ),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
-    );
-  }
-}
+            )
 
-class Cards extends StatelessWidget {
-  final String title;
-  final String imageUrl;
-
-  const Cards({
-    super.key,
-    required this.title,
-    required this.imageUrl,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        RecipeCard(
-          title: title,
-          imageUrl: imageUrl,
-          color: Colors.white,
-          onPressed: () {},
+                : const Center(child: Text('No recipes found')),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -150,38 +163,55 @@ class RecipeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: onPressed, // Navigate to recipe detail page
       child: Card(
         color: color,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15.0),  // Rounded corners for the card
+          borderRadius:
+              BorderRadius.circular(15.0), // Rounded corners for the card
         ),
-        elevation: 4,  // Adds shadow for elevation effect
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,  // Align text to the left
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(15.0),  // Rounded corners for the image
-                child: Image.asset(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,  // Ensures the image takes full width of the card
-                  height: 100,  // You can adjust the height as per your needs
-                ),
+        elevation: 10, // Adds shadow for elevation effect
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start, // Align text to the left
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(15.0),
+                topRight: Radius.circular(15.0),
+              ), // Rounded corners for the image at the top only
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                width: double
+                    .infinity, // Ensures the image takes full width of the card
+                height: 120, // Adjust height as needed
+                errorBuilder: (context, error, stackTrace) {
+                  // Handle image loading errors
+                  return Container(
+                    width: double.infinity,
+                    height: 200,
+                    color: Colors.purple,
+                    child: const Icon(Icons.broken_image, size: 50),
+                  );
+                },
               ),
-              const SizedBox(height: 10),  // Space between image and text
-              Text(
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
+                maxLines: 2, // Limit title to two lines
+                overflow:
+                    TextOverflow.ellipsis, // Add ellipsis if text overflows
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

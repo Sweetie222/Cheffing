@@ -15,8 +15,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-        ),
+      appBar: AppBar(),
       body: CustomBackground(
         child: Form(
           key: _formKey, // Using Form to validate inputs

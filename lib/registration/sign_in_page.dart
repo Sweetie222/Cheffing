@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'sign_up_page.dart';
 import 'forgot_password.dart';
 import 'styling_page.dart';
+
 class RegistrationPage extends StatelessWidget {
   const RegistrationPage({super.key});
 
@@ -9,6 +10,14 @@ class RegistrationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextEditingController emailController = TextEditingController();
     final TextEditingController passwordController = TextEditingController();
+
+    // Create a FocusNode for the email field
+    final FocusNode emailFocusNode = FocusNode();
+
+    // Automatically focus the email field when the page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(emailFocusNode);
+    });
 
     return Scaffold(
       body: CustomBackground(
